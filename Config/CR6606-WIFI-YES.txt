@@ -1,7 +1,7 @@
 # Xiaomi Mi Router CR6606 / ramips MT7621
 CONFIG_TARGET_ramips=y
 CONFIG_TARGET_ramips_mt7621=y
-CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-cr6606=y
+CONFIG_TARGET_DEVICE_ramips_mt7621_DEVICE_xiaomi_mi-router-cr6606=y
 
 # Keep the same image behavior as OpenWRT-Neo.
 CONFIG_TARGET_PER_DEVICE_ROOTFS=y
