@@ -107,6 +107,58 @@ jobs:
           if [ -f "$PROJECT_MIRRORS_FILE" ]; then
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
+      - name: CR6606 MT7621 Patch Fix
+        if: ${{ env.WRT_CONFIG == 'CR6606-WIFI-YES' }}
+        run: |
+          cd ./wrt/
+
+          echo "Applying CR6606/MT7621 workaround..."
+
+          rm -f target/linux/ramips/patches-6.18/761-net-dsa-add-ralink-metadata-tagger.patch
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          p = Path("target/linux/ramips/files/drivers/net/ethernet/ralink/mtk_eth_soc.c")
+          s = p.read_text()
+
+          old_tx = """#if IS_ENABLED(CONFIG_NET_DSA)
+          	if (netdev_uses_dsa(dev) &&
+          	    dev->dsa_ptr->tag_ops->proto == DSA_TAG_PROTO_RALINK) {"""
+
+          new_tx = """#if IS_ENABLED(CONFIG_NET_DSA) && IS_ENABLED(CONFIG_SOC_MT7620)
+          	if (netdev_uses_dsa(dev) &&
+          	    dev->dsa_ptr->tag_ops->proto == DSA_TAG_PROTO_RALINK) {"""
+
+          old_rx = """#if IS_ENABLED(CONFIG_NET_DSA)
+          		if (netdev_uses_dsa(netdev) &&
+          		    netdev->dsa_ptr->tag_ops->proto == DSA_TAG_PROTO_RALINK) {"""
+
+          new_rx = """#if IS_ENABLED(CONFIG_NET_DSA) && IS_ENABLED(CONFIG_SOC_MT7620)
+          		if (netdev_uses_dsa(netdev) &&
+          		    netdev->dsa_ptr->tag_ops->proto == DSA_TAG_PROTO_RALINK) {"""
+
+          if old_tx not in s:
+              raise SystemExit("ERROR: TX Ralink DSA block not found")
+
+          if old_rx not in s:
+              raise SystemExit("ERROR: RX Ralink DSA block not found")
+
+          s = s.replace(old_tx, new_tx, 1)
+          s = s.replace(old_rx, new_rx, 1)
+          p.write_text(s)
+
+          k = Path("target/linux/ramips/files/drivers/net/ethernet/ralink/Kconfig")
+          ks = k.read_text()
+          ks = ks.replace("\tselect NET_DSA_TAG_RALINK\n", "")
+          k.write_text(ks)
+
+          print("CR6606 MT7621 patch workaround applied successfully.")
+          PY
+
+          test ! -f target/linux/ramips/patches-6.18/761-net-dsa-add-ralink-metadata-tagger.patch
+
+          echo "Done."
 
       - name: Check Scripts
         run: |
